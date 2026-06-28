@@ -266,3 +266,60 @@ python MetaSpicii.py \
 | `--target`           | Execute a specific Snakemake target                    |
 | `--create-envs-only` | Create Conda environments without running the workflow |
 
+
+# Input Files
+
+MetaSpicii accepts multiple sequencing strategies.
+
+## Short reads
+
+Paired-end Illumina FASTQ files.
+
+Example:
+
+short_R1.fastq.gz
+short_R2.fastq.gz
+
+---
+
+## Long reads
+
+Supported platforms
+
+- Oxford Nanopore
+- Oxford Nanopore R10
+- PacBio CLR
+- PacBio HiFi
+
+Example
+
+nanopore.fastq.gz
+
+---
+
+## Hi-C reads
+
+Paired-end Hi-C FASTQ files.
+
+Example
+
+hic_R1.fastq.gz
+hic_R2.fastq.gz
+
+---
+
+## Reference-guided mode
+
+Reference-guided mode requires
+
+- MAG directory
+- vOTU fasta
+
+Example
+
+MAGs/
+├── bin1.fa
+├── bin2.fa
+└── ...
+
+vOTUs.fa
