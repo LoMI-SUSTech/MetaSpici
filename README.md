@@ -323,3 +323,56 @@ MAGs/
 └── ...
 
 vOTUs.fa
+
+
+# Output Files
+
+MetaSpicii stores all analysis results in the user-specified output directory. A typical output structure is shown below:
+
+```text
+results/
+├── assembly/
+├── mapping/
+├── binning/
+├── blast_results_mock/
+├── filtered_beds_clean/
+├── hic_results/
+├── mapped_reads/
+├── output/
+├── repeat_regions/
+├── tmp/
+├── merged_links.tsv
+└── config.yaml
+```
+
+---
+
+## Directory Description
+
+| Directory/File         | Description                                                                                                                                           |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `assembly/`            | Genome assembly results, including assembled contigs generated from short reads, long reads or hybrid assembly.                                       |
+| `mapping/`             | Read preprocessing and mapping results, including quality control, duplicate removal, Hi-C restriction site processing, and reference genome masking. |
+| `binning/`             | Genome binning and refinement results for metagenome-assembled genomes (MAGs).                                                                        |
+| `blast_results_mock/`  | BLAST self-alignment results used to identify homologous or repetitive genomic regions for downstream masking.                                        |
+| `repeat_regions/`      | Genomic regions identified as repetitive or highly similar based on BLAST analysis.                                                                   |
+| `filtered_beds_clean/` | Filtered Hi-C contact files after masking repetitive regions and removing contacts originating from these regions.                                    |
+| `mapped_reads/`        | Intermediate files generated during read alignment and mapping.                                                                                       |
+| `hic_results/`         | Final filtered Hi-C interaction data and abundance estimation results.                                                                                |
+| `output/`              | Intermediate and final results generated during mobile genetic element (MGE) identification and MAG–MGE association analysis.                         |
+| `tmp/`                 | Temporary files generated during pipeline execution.                                                                                                  |
+| `merged_links.tsv`     | Unfiltered MAG–MGE association results generated from Hi-C interaction data.                                                                          |
+| `config.yaml`          | Configuration file automatically generated from the command-line arguments.                                                                           |
+
+---
+
+## Primary Outputs
+
+The major results produced by MetaSpicii include:
+
+* High-quality assembled contigs.
+* Metagenome-assembled genomes (MAGs).
+* Filtered Hi-C interaction datasets.
+* Hi-C-based microbial abundance estimation.
+* Predicted mobile genetic elements (MGEs).
+* Hi-C-supported MAG–MGE association results.
