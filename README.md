@@ -146,3 +146,123 @@ barrnap --help
 ```
 
 If all commands execute successfully without errors, MetaSpicii has been installed correctly and is ready for use.
+
+# Usage
+
+MetaSpicii automatically detects the analysis mode based on the input files provided. No additional mode selection is required.
+
+---
+
+## General Usage
+
+```bash
+python MetaSpicii.py [OPTIONS]
+```
+
+Display all available options:
+
+```bash
+python MetaSpicii.py --help
+```
+
+---
+
+## Example 1. Short-read + Hi-C
+
+```bash
+python MetaSpicii.py \
+    -s1 short_R1.fastq.gz \
+    -s2 short_R2.fastq.gz \
+    -h1 hic_R1.fastq.gz \
+    -h2 hic_R2.fastq.gz \
+    -e DpnII \
+    -n fecal \
+    -j 32 \
+    -o results/
+```
+
+---
+
+## Example 2. Long-read + Hi-C (Oxford Nanopore)
+
+```bash
+python MetaSpicii.py \
+    --nanopore nanopore.fastq.gz \
+    -h1 hic_R1.fastq.gz \
+    -h2 hic_R2.fastq.gz \
+    -e DpnII \
+    -n fecal \
+    -j 32 \
+    -o results/
+```
+
+---
+
+## Example 3. Hybrid Assembly (Short + Long + Hi-C)
+
+```bash
+python MetaSpicii.py \
+    -s1 short_R1.fastq.gz \
+    -s2 short_R2.fastq.gz \
+    --nanopore nanopore.fastq.gz \
+    -h1 hic_R1.fastq.gz \
+    -h2 hic_R2.fastq.gz \
+    -e DpnII \
+    -n fecal \
+    -j 32 \
+    -o results/
+```
+
+---
+
+## Example 4. Hi-C Only
+
+```bash
+python MetaSpicii.py \
+    -h1 hic_R1.fastq.gz \
+    -h2 hic_R2.fastq.gz \
+    -e DpnII \
+    -n fecal \
+    -j 32 \
+    -o results/
+```
+
+---
+
+## Example 5. Reference-guided Analysis
+
+```bash
+python MetaSpicii.py \
+    --reference-guided \
+    --mag_dir MAGs/ \
+    --votu vOTUs.fa \
+    -h1 hic_R1.fastq.gz \
+    -h2 hic_R2.fastq.gz \
+    -e DpnII \
+    -n fecal \
+    -j 32 \
+    -o results/
+```
+
+---
+
+## Command-line Arguments
+
+| Argument             | Description                                            |
+| -------------------- | ------------------------------------------------------ |
+| `-s1`, `-s2`         | Short-read FASTQ files (paired-end)                    |
+| `--nanopore`         | Oxford Nanopore reads                                  |
+| `--nanopore_R10`     | Oxford Nanopore R10 reads                              |
+| `--pacbio`           | PacBio CLR reads                                       |
+| `--pacbioHiFi`       | PacBio HiFi reads                                      |
+| `-h1`, `-h2`         | Hi-C paired-end FASTQ files (required)                 |
+| `-e`                 | Restriction enzyme used for Hi-C library preparation   |
+| `-n`                 | Sample name                                            |
+| `-j`                 | Number of CPU threads                                  |
+| `-o`                 | Output directory                                       |
+| `--reference-guided` | Enable reference-guided MAG–vOTU association mode      |
+| `--mag_dir`          | Directory containing MAG genomes                       |
+| `--votu`             | vOTU FASTA file                                        |
+| `--target`           | Execute a specific Snakemake target                    |
+| `--create-envs-only` | Create Conda environments without running the workflow |
+
