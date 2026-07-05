@@ -308,22 +308,52 @@ hic_R2.fastq.gz
 
 ---
 
-## Reference-guided mode
+### Reference-guided mode
 
-Reference-guided mode requires
+The reference-guided mode is designed for users who already have **reference MAGs** and **viral genomes (vOTUs)** available. Instead of performing de novo assembly and genome binning, MetaSpicii directly utilizes these reference sequences together with Hi-C sequencing data to identify MAG–MGE associations.
 
-- MAG directory
-- vOTU fasta
+This mode is particularly useful when:
 
-Example
+- High-quality MAGs have already been reconstructed from the same metagenomic sample.
+- Reference genomes are available from isolates or pure-culture sequencing obtained from the same environment.
+- Existing genome catalogs have been generated in previous studies and users only wish to perform Hi-C-based MAG–MGE association analysis.
 
+**Note:** MetaSpicii does **not** generate MAGs or vOTUs in reference-guided mode. These reference genomes must be prepared independently by the user before running the pipeline.
+
+#### Required inputs
+
+**MAG directory**
+
+A directory containing assembled MAG genomes in FASTA format.
+
+Example:
+
+```text
 MAGs/
-├── bin1.fa
-├── bin2.fa
+├── MAG_001.fa
+├── MAG_002.fa
+├── MAG_003.fa
 └── ...
+```
 
+**vOTU FASTA**
+
+A FASTA file containing viral genomes or viral operational taxonomic units (vOTUs).
+
+Example:
+
+```text
 vOTUs.fa
+```
 
+**Hi-C reads**
+
+Paired-end Hi-C sequencing reads generated from the same sample.
+
+```text
+hic_R1.fastq.gz
+hic_R2.fastq.gz
+```
 
 # Output Files
 
