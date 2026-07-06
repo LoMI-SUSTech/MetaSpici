@@ -405,6 +405,7 @@ The major results produced by MetaSpici include:
 * Filtered Hi-C interaction datasets.
 * Hi-C-based microbial abundance estimation.
 * Predicted mobile genetic elements (MGEs).
+* Hi-C-supported MAG–MGE association results.
 
 
 
@@ -456,4 +457,4 @@ A corresponding Hong Kong Standard Patent application has also been filed.
 May 29, 2026
 
 The application has passed the formal examination and has been assigned an official filing date by the Hong Kong Intellectual Property Department.
-* Hi-C-supported MAG–MGE association results.
+
