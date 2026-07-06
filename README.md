@@ -1,12 +1,12 @@
-# MetaSpicii
-MetaSpicii (Metagenome-targeted Spatial Proximation of Inter-Chromosomal Items) is a Snakemake-based pipeline for metagenome assembly and Hi-C-guided identification of microbial genome (MAG) and mobile genetic element (MGE) associations.
-MetaSpicii integrates short-read, long-read and Hi-C sequencing data into a fully automated and reproducible workflow for microbial genome reconstruction and MAG–MGE association analysis.
+# MetaSpici
+MetaSpici (Metagenome-targeted Spatial Proximation of Inter-Chromosomal Items) is a Snakemake-based pipeline for metagenome assembly and Hi-C-guided identification of microbial genome (MAG) and mobile genetic element (MGE) associations.
+MetaSpici integrates short-read, long-read and Hi-C sequencing data into a fully automated and reproducible workflow for microbial genome reconstruction and MAG–MGE association analysis.
 
 # Installation
 
 ## Prerequisites
 
-Before installing MetaSpicii, please ensure that **Conda** (Miniconda or Anaconda) and **Mamba** are installed.
+Before installing MetaSpici, please ensure that **Conda** (Miniconda or Anaconda) and **Mamba** are installed.
 
 Mamba is recommended because it provides significantly faster dependency resolution than Conda.
 
@@ -18,23 +18,23 @@ conda install -n base -c conda-forge mamba
 
 ---
 
-## Clone MetaSpicii
+## Clone MetaSpici
 
 Clone the repository from GitHub:
 
 ```bash
 git clone <repository_url>
-cd MetaSpicii
+cd MetaSpici
 ```
 
 ---
 
-## Install MetaSpicii
+## Install MetaSpici
 
-Create the MetaSpicii environment using Mamba:
+Create the MetaSpici environment using Mamba:
 
 ```bash
-mamba create -n MetaSpicii \
+mamba create -n MetaSpici \
     -c conda-forge \
     -c bioconda \
     python=3.9 \
@@ -55,7 +55,7 @@ mamba create -n MetaSpicii \
 Activate the environment:
 
 ```bash
-conda activate MetaSpicii
+conda activate MetaSpici
 ```
 
 ---
@@ -87,7 +87,7 @@ conda activate BASALT
 
 ## Download Required Databases
 
-MetaSpicii requires the following databases before running the pipeline.
+MetaSpici requires the following databases before running the pipeline.
 
 ### geNomad database
 
@@ -119,7 +119,7 @@ Or specify another directory:
 checkv download_database /path/to/checkv_db
 ```
 
-> **Note:** Please keep track of the locations of the downloaded databases. Their paths will be required when running MetaSpicii.
+> **Note:** Please keep track of the locations of the downloaded databases. Their paths will be required when running MetaSpici.
 
 ---
 
@@ -145,24 +145,24 @@ metaxa -h
 barrnap --help
 ```
 
-If all commands execute successfully without errors, MetaSpicii has been installed correctly and is ready for use.
+If all commands execute successfully without errors, MetaSpici has been installed correctly and is ready for use.
 
 # Usage
 
-MetaSpicii automatically detects the analysis mode based on the input files provided. No additional mode selection is required.
+MetaSpici automatically detects the analysis mode based on the input files provided. No additional mode selection is required.
 
 ---
 
 ## General Usage
 
 ```bash
-python MetaSpicii.py [OPTIONS]
+python MetaSpici.py [OPTIONS]
 ```
 
 Display all available options:
 
 ```bash
-python MetaSpicii.py --help
+python MetaSpici.py --help
 ```
 
 ---
@@ -170,7 +170,7 @@ python MetaSpicii.py --help
 ## Example 1. Short-read + Hi-C
 
 ```bash
-python MetaSpicii.py \
+python MetaSpici.py \
     -s1 short_R1.fastq.gz \
     -s2 short_R2.fastq.gz \
     -h1 hic_R1.fastq.gz \
@@ -186,7 +186,7 @@ python MetaSpicii.py \
 ## Example 2. Long-read + Hi-C (Oxford Nanopore)
 
 ```bash
-python MetaSpicii.py \
+python MetaSpici.py \
     --nanopore nanopore.fastq.gz \
     -h1 hic_R1.fastq.gz \
     -h2 hic_R2.fastq.gz \
@@ -201,7 +201,7 @@ python MetaSpicii.py \
 ## Example 3. Hybrid Assembly (Short + Long + Hi-C)
 
 ```bash
-python MetaSpicii.py \
+python MetaSpici.py \
     -s1 short_R1.fastq.gz \
     -s2 short_R2.fastq.gz \
     --nanopore nanopore.fastq.gz \
@@ -218,7 +218,7 @@ python MetaSpicii.py \
 ## Example 4. Hi-C Only
 
 ```bash
-python MetaSpicii.py \
+python MetaSpici.py \
     -h1 hic_R1.fastq.gz \
     -h2 hic_R2.fastq.gz \
     -e DpnII \
@@ -232,7 +232,7 @@ python MetaSpicii.py \
 ## Example 5. Reference-guided Analysis
 
 ```bash
-python MetaSpicii.py \
+python MetaSpici.py \
     --reference-guided \
     --mag_dir MAGs/ \
     --votu vOTUs.fa \
@@ -269,7 +269,7 @@ python MetaSpicii.py \
 
 # Input Files
 
-MetaSpicii accepts multiple sequencing strategies.
+MetaSpici accepts multiple sequencing strategies.
 
 ## Short reads
 
@@ -310,7 +310,7 @@ hic_R2.fastq.gz
 
 ### Reference-guided mode
 
-The reference-guided mode is designed for users who already have **reference MAGs** and **viral genomes (vOTUs)** available. Instead of performing de novo assembly and genome binning, MetaSpicii directly utilizes these reference sequences together with Hi-C sequencing data to identify MAG–MGE associations.
+The reference-guided mode is designed for users who already have **reference MAGs** and **viral genomes (vOTUs)** available. Instead of performing de novo assembly and genome binning, MetaSpici directly utilizes these reference sequences together with Hi-C sequencing data to identify MAG–MGE associations.
 
 This mode is particularly useful when:
 
@@ -318,7 +318,7 @@ This mode is particularly useful when:
 - Reference genomes are available from isolates or pure-culture sequencing obtained from the same environment.
 - Existing genome catalogs have been generated in previous studies and users only wish to perform Hi-C-based MAG–MGE association analysis.
 
-**Note:** MetaSpicii does **not** generate MAGs or vOTUs in reference-guided mode. These reference genomes must be prepared independently by the user before running the pipeline.
+**Note:** MetaSpici does **not** generate MAGs or vOTUs in reference-guided mode. These reference genomes must be prepared independently by the user before running the pipeline.
 
 #### Required inputs
 
@@ -357,7 +357,7 @@ hic_R2.fastq.gz
 
 # Output Files
 
-MetaSpicii stores all analysis results in the user-specified output directory. A typical output structure is shown below:
+MetaSpici stores all analysis results in the user-specified output directory. A typical output structure is shown below:
 
 ```text
 results/
@@ -398,7 +398,7 @@ results/
 
 ## Primary Outputs
 
-The major results produced by MetaSpicii include:
+The major results produced by MetaSpici include:
 
 * High-quality assembled contigs.
 * Metagenome-assembled genomes (MAGs).
