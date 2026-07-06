@@ -405,4 +405,55 @@ The major results produced by MetaSpici include:
 * Filtered Hi-C interaction datasets.
 * Hi-C-based microbial abundance estimation.
 * Predicted mobile genetic elements (MGEs).
+
+
+
+
+# Patents
+
+The core algorithms implemented in **MetaSpicii** are protected by intellectual property applications and patents.
+
+### Granted Chinese Patent
+
+**Title**
+
+Different-genome proximity ligation signal determination method, apparatus, terminal, and storage medium
+
+**Patent No.**
+
+ZL 2026 1 0270794.6
+
+**Certificate No.**
+
+8947290
+
+**Patent Holder**
+
+Southern University of Science and Technology (SUSTech)
+
+**Inventors**
+
+Lu Fan, Zichun Sun, Wenxiu Wang
+
+**Authorization**
+
+CN 121811976 B
+
+Granted on **May 15, 2026**.
+
+---
+
+### Hong Kong Standard Patent Application
+
+A corresponding Hong Kong Standard Patent application has also been filed.
+
+**Application No.**
+
+42026124113.7
+
+**Filing Date**
+
+May 29, 2026
+
+The application has passed the formal examination and has been assigned an official filing date by the Hong Kong Intellectual Property Department.
 * Hi-C-supported MAG–MGE association results.
