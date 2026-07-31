@@ -1,3 +1,7 @@
+<img width="376" height="376" alt="exec-63d2ea4b-0047-4b9f-b183-fee66304a95d copy" src="https://github.com/user-attachments/assets/e031c627-7d67-4670-86ee-eecf8397328b" />
+
+
+
 # MetaSpici
 MetaSpici (Metagenome-targeted Spatial Proximation of Inter-Chromosomal Items) is a Snakemake-based pipeline for metagenome assembly and Hi-C-guided identification of microbial genome (MAG) and mobile genetic element (MGE) associations.
 MetaSpici integrates short-read, long-read and Hi-C sequencing data into a fully automated and reproducible workflow for microbial genome reconstruction and MAG–MGE association analysis.
