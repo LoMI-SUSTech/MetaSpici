@@ -1,0 +1,35 @@
+cff-version: "1.2.0"
+message: "If you use MetaSpici in research, please cite this software using these metadata and identify the exact release or commit used."
+title: "MetaSpici"
+type: software
+abstract: "MetaSpici is research software for filtering nonspecific inter-genome proximity-ligation contacts using an abundance-aware random-collision background model and observed-to-expected signal assessment."
+authors:
+  - family-names: "Fan"
+    given-names: "Lu"
+    affiliation: "Southern University of Science and Technology"
+  - family-names: "Sun"
+    given-names: "Zichun"
+    affiliation: "Southern University of Science and Technology"
+  - family-names: "Wang"
+    given-names: "Wenxiu"
+    affiliation: "Southern University of Science and Technology"
+contact:
+  - family-names: "Fan"
+    given-names: "Lu"
+    affiliation: "Southern University of Science and Technology"
+    email: "fanl@sustech.edu.cn"
+repository-code: "https://github.com/LoMI-SUSTech/MetaSpici"
+url: "https://github.com/LoMI-SUSTech/MetaSpici"
+license: "PolyForm-Noncommercial-1.0.0"
+keywords:
+  - "metagenomic Hi-C"
+  - "proximity ligation"
+  - "microbiome"
+  - "phage-host association"
+  - "random collision model"
+  - "bioinformatics"
+
+# No verifiable article title, DOI, journal, or preprint identifier was present
+# in the supplied records when this file was prepared. Once a public article
+# record exists, add it under `preferred-citation` and update the message to ask
+# users to cite both the article and the exact software release.
