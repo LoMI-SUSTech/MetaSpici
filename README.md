@@ -410,16 +410,41 @@ The major results produced by MetaSpici include:
 
 ---
 
-# Patents
+## Licensing
 
-The core algorithms implemented in **MetaSpici** are protected by intellectual property applications and patents.
+MetaSpici uses a dual-licensing model:
 
-### Granted Chinese Patent
+- Noncommercial use is available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+- Use outside the permitted purposes of that license requires a separate written [commercial license](COMMERCIAL_LICENSE.md).
 
-ZL 2026 1 0270794.6
+PolyForm Noncommercial is a source-available license with a noncommercial-use restriction; it is not an OSI-approved open-source license.
 
-### Hong Kong Standard Patent
+## Patents
 
-**Application No.** 42026124113.7
+The method implemented by MetaSpici is associated with patent rights and a pending Hong Kong patent application. See [PATENTS.md](PATENTS.md) for the identifiers, owner or applicant, and status supported by the patent records supplied with this repository.
 
+The license grant in `LICENSE` controls the patent license, if any, for permitted noncommercial use. `PATENTS.md` is informational and does not independently grant rights.
 
+## Citation
+
+If you use MetaSpici in research, cite the software using [CITATION.cff](CITATION.cff), including the exact version or commit used. When an associated peer-reviewed article or preprint receives a public bibliographic record, its DOI and full citation should be added to `CITATION.cff` as `preferred-citation`; no article metadata is asserted here without a verifiable publication record.
+
+## Contributing
+
+External contributions are welcome subject to the contribution and intellectual-property terms in [CONTRIBUTING.md](CONTRIBUTING.md). In particular, contributors must have the right to submit their work and must grant rights sufficient for both the noncommercial distribution and commercial licensing of MetaSpici.
+
+## Third-party software
+
+Third-party components retain their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Release maintainers must update that file from the exact dependency manifests and lockfiles for every release.
+
+## Notices and contact
+
+See [NOTICE](NOTICE) for copyright and patent notices.
+
+- Technical questions: use the GitHub issue tracker.
+- Commercial licensing and technology-transfer inquiries: [fanl@sustech.edu.cn](mailto:fanl@sustech.edu.cn).
+- Security-sensitive reports should not be posted publicly; contact the maintainers through a private channel listed in the repository profile or release documentation.
+
+## Disclaimer
+
+MetaSpici is provided without warranty under the terms of `LICENSE`. It is not a substitute for professional scientific, clinical, legal, or regulatory judgment.
