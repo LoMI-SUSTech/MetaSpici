@@ -1,0 +1,4 @@
+include README.md LICENSE NOTICE PATENTS.md COMMERCIAL_LICENSE.md THIRD_PARTY_NOTICES.md CITATION.cff CONTRIBUTING.md
+recursive-include metaspici/workflow *
+recursive-include tests *.py
+recursive-include docs *

@@ -1,0 +1,309 @@
+from pathlib import Path
+import sys
+import shlex
+
+ROOT = Path(config['root'])
+# Runtime environments are pre-created under config['env_root']; the launcher
+# exports that directory through CONDA_ENVS_PATH so Conda resolves these names.
+sys.path.insert(0, str(ROOT / 'scripts'))
+from ref_utils import validate_inputs
+SAMPLE = config['sample']
+UTIL = str(ROOT / 'scripts/ref_utils.py')
+FE = str(ROOT / 'scripts/hic_foldchange.py')
+BAMM = str(ROOT / 'scripts/bamm_filter_compat.py')
+CORE = 'core'
+MGE_INPUT = config.get('votu') or config.get('mge_fasta')
+validate_inputs(config['mag_files'], MGE_INPUT)
+
+shell.prefix("mkdir -p results qc/reads qc/reference qc/network reference/masking logs run_info intermediates/reference_qc/mge_dereplication intermediates/reads/fastp intermediates/reads/normalized intermediates/reads/fastuniq intermediates/reads/truncated intermediates/masking/metaxa intermediates/masking/mask1 intermediates/masking/mask2 intermediates/alignment/index intermediates/network; ")
+
+rule all:
+    input:
+        f'results/{SAMPLE}.mge_host.filtered.tsv',
+        f'results/{SAMPLE}.associations.unfiltered_fe.tsv',
+        'qc/network/pair_filtering.json',
+        'run_info/output_manifest.tsv',
+        'README_outputs.md'
+
+rule genome_qc:
+    input:
+        genomes=config['mag_files'],
+        info=[config['genome_info']] if config.get('dereplicate', False) and config.get('genome_info') else []
+    output:
+        directory('intermediates/reference_qc/drep')
+    params:
+        db=shlex.quote(config.get('checkm_db') or ''),
+        info=('--genomeInfo ' + shlex.quote(config['genome_info'])) if config.get('dereplicate', False) and config.get('genome_info') else '',
+        dereplicate='true' if config.get('dereplicate', False) else 'false',
+        identity=config['identity_fraction'],
+        completeness=config['min_completeness'], contamination=config['max_contamination'],
+        length=config['min_genome_length']
+    threads: config['threads']
+    conda: 'genome_qc' if config.get('dereplicate', False) else CORE
+    log: 'logs/genome_qc.log'
+    shell:
+        r"""
+        set -euo pipefail
+        if [ "{params.dereplicate}" = "true" ]; then
+            export CHECKM_DATA_PATH={params.db}
+            dRep dereplicate {output:q} -g {input.genomes:q} -p {threads} \
+                -comp {params.completeness} -con {params.contamination} -l {params.length} \
+                -sa {params.identity} --S_algorithm ANImf {params.info} > {log:q} 2>&1
+        else
+            mkdir -p {output:q}/dereplicated_genomes
+            cp -- {input.genomes:q} {output:q}/dereplicated_genomes/
+            printf '%s\n' 'dRep disabled (default): all input genomes were retained without dRep/CheckM filtering.' > {log:q}
+        fi
+        """
+
+rule merge_MAGs:
+    input: 'intermediates/reference_qc/drep'
+    output: fasta='reference/host_genomes.fasta', offsets='reference/host_contig_offsets.tsv'
+    conda: CORE
+    log: 'logs/merge_hosts.log'
+    shell:
+        'python {UTIL:q} merge_genomes {input:q}/dereplicated_genomes {output.fasta:q} {output.offsets:q} > {log:q} 2>&1'
+
+if config.get('votu'):
+    rule viral_quality:
+        input: config['votu']
+        output: 'intermediates/reference_qc/checkv/quality_summary.tsv'
+        params: db=config['checkv_db']
+        threads: config['threads']
+        conda: 'viral'
+        log: 'logs/checkv.log'
+        shell:
+            'mkdir -p logs; checkv end_to_end {input:q} intermediates/reference_qc/checkv -d {params.db:q} -t {threads} > {log:q} 2>&1'
+
+    rule viral_dereplication:
+        input:
+            fna=config['votu'], quality='intermediates/reference_qc/checkv/quality_summary.tsv'
+        output:
+            fasta='reference/mge_sequences.fasta', clusters='qc/reference/mge_clusters.tsv'
+        params:
+            identity=config['identity'], coverage=config['viral_coverage']
+        threads: config['threads']
+        conda: 'viral'
+        log: 'logs/viral_dereplication.log'
+        shell:
+            r"""
+            (
+              makeblastdb -in {input.fna:q} -dbtype nucl -out intermediates/reference_qc/mge_dereplication/blast_db
+              blastn -query {input.fna:q} -db intermediates/reference_qc/mge_dereplication/blast_db \
+                -out intermediates/reference_qc/mge_dereplication/blast_hits.tsv -outfmt '6 std qlen slen' \
+                -max_target_seqs 1000000 -num_threads {threads}
+              anicalc -i intermediates/reference_qc/mge_dereplication/blast_hits.tsv -o intermediates/reference_qc/mge_dereplication/ani.tsv
+              aniclust --fna {input.fna:q} --ani intermediates/reference_qc/mge_dereplication/ani.tsv \
+                --out {output.clusters:q} --min_ani {params.identity} \
+                --min_tcov {params.coverage} --min_qcov 0
+              python {UTIL:q} representatives {input.fna:q} {output.clusters:q} {output.fasta:q}
+            ) > {log:q} 2>&1
+            """
+else:
+    rule prepare_curated_mge:
+        input: config['mge_fasta']
+        output: 'reference/mge_sequences.fasta'
+        log: 'logs/prepare_curated_mge.log'
+        shell: 'cp {input:q} {output:q} > {log:q} 2>&1'
+
+rule build_reference:
+    input: 'reference/host_genomes.fasta', 'reference/mge_sequences.fasta'
+    output: 'reference/combined.fasta'
+    log: 'logs/build_reference.log'
+    shell: 'cat {input:q} > {output:q} 2> {log:q}'
+
+rule metaxa_rrna:
+    input: 'reference/combined.fasta'
+    output: 'intermediates/masking/metaxa/metaxa.ssu.extraction.results', 'intermediates/masking/metaxa/metaxa.lsu.extraction.results'
+    threads: config['threads']
+    conda: 'metaxa'
+    log: 'logs/metaxa.log'
+    shell:
+        r"""
+        (
+          metaxa2 --plus T --mode m --cpu {threads} --multi_thread T --table T -g ssu --not_found T -i {input:q} -o intermediates/masking/metaxa/metaxa.ssu
+          metaxa2 --plus T --mode m --cpu {threads} --multi_thread T --table T -g lsu --not_found T -i {input:q} -o intermediates/masking/metaxa/metaxa.lsu
+        ) > {log:q} 2>&1
+        """
+
+rule mask1:
+    input:
+        fasta='reference/combined.fasta',
+        ssu='intermediates/masking/metaxa/metaxa.ssu.extraction.results', lsu='intermediates/masking/metaxa/metaxa.lsu.extraction.results'
+    output: 'reference/combined.mask1.fasta', 'reference/masking/mask1_regions.bed'
+    threads: config['threads']
+    conda: CORE
+    log: 'logs/mask1.log'
+    shell:
+        r"""
+        (
+          python {UTIL:q} mask_bed metaxa {input.ssu:q} intermediates/masking/mask1/ssu.bed
+          python {UTIL:q} mask_bed metaxa {input.lsu:q} intermediates/masking/mask1/lsu.bed
+          for kingdom in bac arc euk; do
+            barrnap --kingdom "$kingdom" --threads {threads} --reject 0.3 {input.fasta:q} > "intermediates/masking/mask1/$kingdom.gff"
+            python {UTIL:q} mask_bed gff "intermediates/masking/mask1/$kingdom.gff" "intermediates/masking/mask1/$kingdom.bed"
+          done
+          tRNAscan-SE -A -b intermediates/masking/mask1/archaea.bed --thread {threads} {input.fasta:q} > intermediates/masking/mask1/archaea.out
+          tRNAscan-SE -B -b intermediates/masking/mask1/bacteria.bed --thread {threads} {input.fasta:q} > intermediates/masking/mask1/bacteria.out
+          dustmasker -in {input.fasta:q} -out intermediates/masking/mask1/dust.interval -outfmt interval
+          python {UTIL:q} mask_bed dust intermediates/masking/mask1/dust.interval intermediates/masking/mask1/dust.bed
+          cat intermediates/masking/mask1/ssu.bed intermediates/masking/mask1/lsu.bed intermediates/masking/mask1/bac.bed intermediates/masking/mask1/arc.bed intermediates/masking/mask1/euk.bed \
+              intermediates/masking/mask1/archaea.bed intermediates/masking/mask1/bacteria.bed intermediates/masking/mask1/dust.bed | cut -f1-3 | \
+              LC_ALL=C sort -k1,1 -k2,2n | bedtools merge -i - > {output[1]:q}
+          bedtools maskfasta -fi {input.fasta:q} -bed {output[1]:q} -fo {output[0]:q}
+        ) > {log:q} 2>&1
+        """
+
+rule fastp:
+    input: r1=config['hic_read1'], r2=config['hic_read2']
+    output: r1='intermediates/reads/fastp/clean_R1.fastq', r2='intermediates/reads/fastp/clean_R2.fastq',
+            json='qc/reads/fastp.json', html='qc/reads/fastp.html'
+    threads: min(16, config['threads'])
+    conda: CORE
+    log: 'logs/fastp.log'
+    shell:
+        r"""
+        fastp -i {input.r1:q} -I {input.r2:q} -o {output.r1:q} -O {output.r2:q} \
+          -w {threads} -D -q 30 -l 30 --cut_front --cut_tail -r -M 30 \
+          -j {output.json:q} -h {output.html:q} --umi_delim / > {log:q} 2>&1
+        """
+
+rule normalize_ids:
+    input: 'intermediates/reads/fastp/clean_R1.fastq', 'intermediates/reads/fastp/clean_R2.fastq'
+    output: 'intermediates/reads/normalized/normalized_R1.fastq', 'intermediates/reads/normalized/normalized_R2.fastq'
+    conda: CORE
+    log: 'logs/normalize_ids.log'
+    shell: 'python {UTIL:q} normalize {input:q} {output:q} > {log:q} 2>&1'
+
+rule fastuniq:
+    input: 'intermediates/reads/normalized/normalized_R1.fastq', 'intermediates/reads/normalized/normalized_R2.fastq'
+    output: 'intermediates/reads/fastuniq/fastuniq_R1.fastq', 'intermediates/reads/fastuniq/fastuniq_R2.fastq'
+    conda: CORE
+    log: 'logs/fastuniq.log'
+    shell:
+        r"""
+        printf '%s\n' {input:q} > intermediates/reads/fastuniq/input_files.list
+        fastuniq -i intermediates/reads/fastuniq/input_files.list -t q -o {output[0]:q} -p {output[1]:q} > {log:q} 2>&1
+        """
+
+rule hicup_truncater:
+    input: 'intermediates/reads/fastuniq/fastuniq_R1.fastq', 'intermediates/reads/fastuniq/fastuniq_R2.fastq'
+    output: 'intermediates/reads/truncated/fastuniq_R1.trunc.fastq', 'intermediates/reads/truncated/fastuniq_R2.trunc.fastq'
+    params: re1=config['re1'], nofill='--nofill' if config['nofill'] else '', truncater=str(ROOT / 'third_party/hicup/hicup_truncater')
+    threads: config['threads']
+    conda: 'hicup_runtime'
+    log: 'logs/hicup_truncater.log'
+    shell:
+        r"""
+        mkdir -p intermediates/reads/truncated
+        perl {params.truncater:q} --r 0 --re1 {params.re1:q} {params.nofill} --threads {threads} \
+          --outdir intermediates/reads/truncated {input:q} > {log:q} 2>&1
+        """
+
+rule bwa_index:
+    input: 'reference/combined.mask1.fasta'
+    output: expand('intermediates/alignment/index/reference.{ext}', ext=['amb', 'ann', 'bwt', 'pac', 'sa'])
+    conda: CORE
+    log: 'logs/bwa_index.log'
+    shell: 'bwa index -p intermediates/alignment/index/reference {input:q} > {log:q} 2>&1'
+
+rule map_reads:
+    input:
+        ref='reference/combined.mask1.fasta', idx=rules.bwa_index.output,
+        r1='intermediates/reads/truncated/fastuniq_R1.trunc.fastq', r2='intermediates/reads/truncated/fastuniq_R2.trunc.fastq'
+    output: 'intermediates/alignment/alignments.unique.sorted.bam'
+    threads: config['threads']
+    conda: CORE
+    log: 'logs/mapping.log'
+    shell:
+        r"""
+        (
+          bwa mem -5SP -t {threads} intermediates/alignment/index/reference {input.r1:q} {input.r2:q} | \
+            samblaster | samtools view -S -h -b -q 20 -F 2316 > intermediates/alignment/alignments.mapq_filtered.bam
+          sambamba view -t {threads} -h -f bam \
+            -F 'mapping_quality >= 1 and not (unmapped or secondary_alignment) and not ([XA] != null or [SA] != null)' \
+            intermediates/alignment/alignments.mapq_filtered.bam -o intermediates/alignment/alignments.unique.bam
+          samtools sort -@ {threads} -o {output:q} intermediates/alignment/alignments.unique.bam
+        ) > {log:q} 2>&1
+        """
+
+rule bamm_filter:
+    input: 'intermediates/alignment/alignments.unique.sorted.bam'
+    output: 'intermediates/alignment/alignments.unique.sorted_filtered.bam'
+    params: identity=config['identity_fraction']
+    conda: 'bamm'
+    log: 'logs/bamm.log'
+    shell:
+        'python {BAMM:q} -b {input:q} -o intermediates/alignment --percentage_id {params.identity} --percentage_aln 0.9 > {log:q} 2>&1'
+
+rule bam_to_bed:
+    input: 'intermediates/alignment/alignments.unique.sorted_filtered.bam'
+    output: 'intermediates/alignment/alignments.identity_filtered.bed'
+    conda: CORE
+    log: 'logs/bam_to_bed.log'
+    shell: 'bedtools bamtobed -i {input:q} > {output:q} 2> {log:q}'
+
+rule mask2:
+    input: 'reference/combined.mask1.fasta'
+    output: 'reference/masking/mask2_regions.bed'
+    params: identity=config['identity']
+    threads: config['threads']
+    conda: CORE
+    log: 'logs/mask2.log'
+    shell:
+        r"""
+        (
+          makeblastdb -in {input:q} -dbtype nucl -out intermediates/masking/mask2/blast_db
+          blastn -query {input:q} -db intermediates/masking/mask2/blast_db -out intermediates/masking/mask2/blast_hits.tsv \
+            -outfmt '6 qseqid sseqid pident length qstart qend sstart send' \
+            -evalue 1e-10 -max_target_seqs 1000000 -num_threads {threads}
+          awk -v id={params.identity} '($1 != $2) && ($1 < $2) && ($3 > id) && ($4 > 75) {{
+            s=$5; e=$6; if(s>e){{t=s;s=e;e=t}}; print $1"\t"(s-1)"\t"e;
+            s=$7; e=$8; if(s>e){{t=s;s=e;e=t}}; print $2"\t"(s-1)"\t"e
+          }}' intermediates/masking/mask2/blast_hits.tsv | LC_ALL=C sort -k1,1 -k2,2n | bedtools merge -i - > {output:q}
+        ) > {log:q} 2>&1
+        """
+
+rule filter_mapping_bed:
+    input: bed='intermediates/alignment/alignments.identity_filtered.bed', mask='reference/masking/mask2_regions.bed'
+    output: 'intermediates/network/alignments.mask2_filtered.qname_sorted.bed'
+    conda: CORE
+    log: 'logs/filter_mapping_bed.log'
+    shell:
+        r"""
+        ( bedtools subtract -a {input.bed:q} -b {input.mask:q} -A -nonamecheck | \
+          LC_ALL=C sort -k4,4 > {output:q} ) 2> {log:q}
+        """
+
+rule reconstruct_contacts:
+    input: 'intermediates/network/alignments.mask2_filtered.qname_sorted.bed'
+    output: links='intermediates/network/contact_counts.tsv', audit='qc/network/pair_filtering.json'
+    conda: CORE
+    log: 'logs/reconstruct_contacts.log'
+    shell: 'python {UTIL:q} contacts {input:q} {output.links:q} {output.audit:q} > {log:q} 2>&1'
+
+rule hic_foldchange:
+    input: links='intermediates/network/contact_counts.tsv', fasta='reference/combined.mask1.fasta', fastq='intermediates/reads/fastuniq/fastuniq_R1.fastq', hosts='reference/host_genomes.fasta', mges='reference/mge_sequences.fasta'
+    output: stats=f'qc/network/{SAMPLE}.genome_depth.tsv', result=f'results/{SAMPLE}.mge_host.filtered.tsv', all_results=f'results/{SAMPLE}.associations.unfiltered_fe.tsv'
+    params: depth=config['min_depth'], fe=config['fe_cutoff'], contacts=config['min_contacts']
+    conda: CORE
+    log: 'logs/foldchange.log'
+    shell:
+        r"""
+        python {FE:q} {input.links:q} {input.fasta:q} {input.fastq:q} {output.stats:q} {output.result:q} \
+          {params.depth} {params.fe} {params.contacts} {output.all_results:q} {input.hosts:q} {input.mges:q} > {log:q} 2>&1
+        """
+
+rule organize_reports:
+    input:
+        final=f'results/{SAMPLE}.mge_host.filtered.tsv',
+        all_edges=f'results/{SAMPLE}.associations.unfiltered_fe.tsv',
+        depth=f'qc/network/{SAMPLE}.genome_depth.tsv',
+        audit='qc/network/pair_filtering.json',
+        fastp_json=rules.fastp.output.json, fastp_html=rules.fastp.output.html,
+        offsets=rules.merge_MAGs.output.offsets
+    output: manifest='run_info/output_manifest.tsv', guide='README_outputs.md', tool_reports=directory('qc/reference/tool_reports'), hicup_reports=directory('qc/reads/hicup')
+    params: script=str(ROOT / 'scripts/organize_reports.py'), sample=SAMPLE
+    conda: CORE
+    log: 'logs/organize_reports.log'
+    shell: 'python {params.script:q} --sample {params.sample:q} > {log:q} 2>&1'

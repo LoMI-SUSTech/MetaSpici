@@ -1,52 +1,55 @@
 # Third-Party Notices
 
-This file records third-party software, data, models, assets, and other materials distributed with MetaSpici or required by a MetaSpici release.
+This release includes the bundled HiCUP Truncater files and assembly-mode setup. Most scientific tools are installed as Conda packages at setup time and are not copied into the MetaSpici wheel.
 
-## Current disclosure status
+## Bundled component
 
-No source tree, dependency manifest, lockfile, container definition, vendored-code inventory, or accessible contents of the target GitHub repository were available in the materials used to prepare this notice. Consequently, no third-party component can be affirmatively identified, versioned, or assigned a license from the supplied materials alone.
+### HiCUP Truncater v0.9.2
 
-This statement is not a representation that MetaSpici has no third-party dependencies. It means that a dependency-level notice cannot responsibly be completed until the exact release contents are audited.
+- Location: `metaspici/workflow/third_party/hicup/`
+- Files: `hicup_truncater`, `hicup_module.pm`, `COPYING`, `NOTICE`
+- Distribution status: bundled in the MetaSpici wheel/source archive
+- License: GPL-3.0-or-later, as identified in the bundled upstream notices
+- Modification status: retained from the established reference workflow; runtime invocation is through Perl
 
-## Confirmed bundled components
+## Dependencies installed or fetched at setup
 
-No bundled third-party component was identified in the supplied release materials.
+The following components are installed/fetched for the assembly profile. Their source licenses continue to apply; they are not relicensed by MetaSpici.
 
-Scientific methods and platform names mentioned in the patent materials, including Hi-C, Meta-Hi-C, 3C, Micro-C, Pore-C, SPRITE, and GAM, are not treated as bundled software dependencies merely because they are referenced.
+### BASALT v1.1.0
 
-## Required release audit
+- Source: https://github.com/PKU-EMBL/BASALT/tree/v1.1.0
+- Version pin: Git tag `v1.1.0`
+- Used for: short-read binning and refinement in the original short-read + Hi-C workflow
+- Distribution status: source is cloned and its `BASALT_script.zip` is installed into the user-selected Conda prefix during setup; it is not embedded in the MetaSpici wheel
+- License: upstream repository identifies MIT; retain the upstream license and notices with the installed source cache
+- Model files: downloaded separately by the upstream BASALT model downloader into the configured cache directory; their redistribution rights should be assessed independently and they are not included in this wheel
 
-Before publishing or tagging any MetaSpici release, a maintainer must:
+### MetaTOR
 
-1. inventory direct and transitive runtime, build, test, documentation, workflow, container, and optional dependencies from the exact release commit;
-2. inventory vendored source, copied snippets, generated code, models, reference databases, example datasets, fonts, icons, images, and documentation;
-3. record each component's canonical name, exact version or commit, source URL, copyright notice, SPDX license identifier, and role in MetaSpici;
-4. preserve all license texts, attribution notices, source-offer requirements, modification notices, and other obligations required by those licenses;
-5. confirm that every dependency license is compatible with the intended noncommercial and commercial distribution models;
-6. separate development-only tools from components actually distributed to users;
-7. generate and retain a software bill of materials where practical; and
-8. update this file in the same pull request as any dependency change that alters notice obligations.
+- Source: https://github.com/koszullab/metaTOR
+- Installed as a Conda package for the assembly profile
+- Used for Hi-C binning, network/partition construction and MGE linking
+- Upstream package metadata identifies GPL-3.0-or-later; the installed package retains its license and notices
 
-## Notice format for each component
+### geNomad
 
-Add one section per component using this form:
+- Source: https://github.com/apcamargo/genomad
+- Installed as a Conda package for the assembly profile
+- Used for virus/plasmid candidate detection
+- Not bundled in the MetaSpici wheel; refer to the installed package's exact-version license metadata
 
-```text
-### Component name
+### Other Conda-installed tools
 
-- Version or commit:
-- Source:
-- Copyright:
-- License:
-- Used for:
-- Distributed with MetaSpici: yes/no
-- Required notices or modifications:
-```
-
-Include the component's complete license text when its terms require reproduction of that text. Do not rely only on a package-registry label; verify the license against the source distribution for the exact version.
+The workflow also uses Conda-installed tools including MEGAHIT, Flye, metaMDBG, QuickMerge, seqmagick, fastp, FastUniq, dRep, CheckM, CheckV, BLAST+, BWA, samtools, samblaster, sambamba, bedtools, MetaXa2, Barrnap, tRNAscan-SE and Snakemake. They are not bundled into the wheel. Their individual package/source licenses and notices apply.
 
 ## No relicensing of third-party materials
 
-The MetaSpici license applies only to material that the MetaSpici licensor has authority to license. Third-party materials remain governed by their respective licenses and notices. Nothing in `LICENSE`, `COMMERCIAL_LICENSE.md`, or a MetaSpici commercial agreement overrides third-party terms unless the relevant third-party rights holder expressly agrees in writing.
+The MetaSpici license applies only to material that the MetaSpici licensor has authority to license. Third-party tools, databases and models remain governed by their respective terms. Nothing in `LICENSE`, `COMMERCIAL_LICENSE.md`, or a MetaSpici commercial agreement overrides third-party terms unless the relevant rights holder expressly agrees in writing.
 
-Questions about a third-party notice should be raised through the GitHub issue tracker before redistribution.
+Before publishing a release, record the resolved Conda package versions, BASALT source commit, model archive identity/checksum, database versions, and the license metadata for the exact installed package set. Do not redistribute third-party databases or model files unless their licenses permit it.
+
+
+## OPERA-MS (downloaded at setup time)
+
+Hybrid + Hi-C setup downloads the official `CSB5/OPERA-MS` source repository at the `OPERA-MS-0.9.0` ref and builds it locally. OPERA-MS source and its bundled components retain their upstream license notices; users should consult the `LICENSE` and notices in the downloaded OPERA-MS tree. MetaSpici does not redistribute a prebuilt OPERA-MS binary in the wheel.

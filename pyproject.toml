@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68,<81", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metaspici"
+version = "1.1"
+description = "MetaSpici reference-guided and assembly-based Hi-C MGE-host association workflow"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10,<3.12"
+dependencies = ["PyYAML>=6,<7", "snakemake==7.32.4", "PuLP==2.7.0", "packaging<26"]
+
+[project.scripts]
+metaspici = "metaspici.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["metaspici*"]
+
+[tool.setuptools.package-data]
+metaspici = ["workflow/*", "workflow/envs/*", "workflow/scripts/*.py", "workflow/third_party/hicup/*"]
