@@ -1,0 +1,44 @@
+# Python/build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Conda environments and databases
+.envs/
+envs/
+checkm_data/
+checkv_db*/
+genomad_db*/
+
+# Sequencing inputs and large analysis outputs
+*.sra
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.bam
+*.cram
+*.sam
+*.fa
+*.fasta
+*.fna
+*.fa.gz
+*.fasta.gz
+assembly_workflow/
+assembly_stage/
+mapping/
+intermediates/
+qc/
+logs/
+results/
+run_info/
+hic_results/
+merged_links.tsv
+
+# Editor/OS
+.DS_Store
+Thumbs.db

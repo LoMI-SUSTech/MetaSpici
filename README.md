@@ -1,454 +1,316 @@
-<img width="376" height="376" alt="exec-63d2ea4b-0047-4b9f-b183-fee66304a95d copy" src="https://github.com/user-attachments/assets/e031c627-7d67-4670-86ee-eecf8397328b" />
+<p align="center">
+<img width="220" alt="MetaSpici logo" src="https://github.com/user-attachments/assets/e031c627-7d67-4670-86ee-eecf8397328b">
+</p>
 
+# MetaSpici V1.1
 
+**MetaSpici** (*Metagenome-targeted Spatial Proximation of
+Inter-Chromosomal Items*) is a Snakemake-based pipeline for metagenome
+assembly and Hi-C-guided identification of associations between
+microbial genomes (MAGs) and mobile genetic elements (MGEs).
 
-# MetaSpici
-MetaSpici (Metagenome-targeted Spatial Proximation of Inter-Chromosomal Items) is a Snakemake-based pipeline for metagenome assembly and Hi-C-guided identification of microbial genome (MAG) and mobile genetic element (MGE) associations.
-MetaSpici integrates short-read, long-read and Hi-C sequencing data into a fully automated and reproducible workflow for microbial genome reconstruction and MAG–MGE association analysis.
+MetaSpici provides two analysis modes:
 
-# Installation
+- **Assembly mode:** reconstruct MAG/MGE candidates from sequencing
+  reads and infer MGE–host associations using Hi-C data.
+- **Reference mode:** infer MGE–host associations from user-provided
+  genomes and MGE sequences.
 
-## Prerequisites
+## Features
 
-Before installing MetaSpici, please ensure that **Conda** (Miniconda or Anaconda) and **Mamba** are installed.
+- Supports four assembly input configurations: Short reads + Hi-C, Long
+  reads + Hi-C, Hybrid + Hi-C, and Hi-C only.
+- Supports reference-guided MGE–host association analysis.
+- Identifies MAG and MGE candidates from sequencing data.
+- Uses Hi-C contact evidence and fold enrichment (FE) to identify
+  enriched MGE–host associations.
+- Provides intermediate assembly results, quality-control reports, and
+  final MGE–host association tables.
 
-Mamba is recommended because it provides significantly faster dependency resolution than Conda.
+## Workflow overview
 
-If Mamba is not installed:
+| Analysis mode          | Input data                                                           | Main workflow                                                                                                               |
+|------------------------|----------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| **Short reads + Hi-C** | Paired-end short reads and paired-end Hi-C reads                     | MEGAHIT assembly → BASALT/MetaTOR binning → combine MAG candidates → geNomad MGE identification → Hi-C association analysis |
+| **Long reads + Hi-C**  | Long reads, long-read type, and paired-end Hi-C reads                | Long-read assembly → MAG/MGE candidate processing → geNomad MGE identification → Hi-C association analysis                  |
+| **Hybrid + Hi-C**      | Paired-end short reads, long reads, and paired-end Hi-C reads        | OPERA-MS hybrid assembly → MAG/MGE candidate processing → geNomad MGE identification → Hi-C association analysis            |
+| **Hi-C only**          | Paired-end Hi-C reads                                                | Hi-C-based assembly and binning workflow → geNomad MGE identification → Hi-C association analysis                           |
+| **Reference**          | User-provided MAGs/genomes, MGE sequences, and paired-end Hi-C reads | Hi-C read processing and mapping → background-contact filtering → FE calculation → MGE–host association table               |
+
+The assembly workflow screens contigs of at least 5 kb for geNomad-based
+virus and plasmid identification.
+
+## Installation
+
+### Requirements
+
+- Linux environment (for example, an HPC or Linux server).
+- Conda.
+- Git and network access during installation.
+- Sufficient disk space for Conda environments, databases, sequencing
+  reads, and intermediate results.
+
+### 1. Download MetaSpici
 
 ```bash
-conda install -n base -c conda-forge mamba
-```
-
----
-
-## Clone MetaSpici
-
-Clone the repository from GitHub:
-
-```bash
-git clone <repository_url>
+git clone https://github.com/LoMI-lab/MetaSpici.git
 cd MetaSpici
 ```
 
----
+### 2. Create the MetaSpici environment
 
-## Install MetaSpici
-
-Create the MetaSpici environment using Mamba:
-
-```bash
-mamba create -n MetaSpici \
-    -c conda-forge \
-    -c bioconda \
-    python=3.9 \
-    snakemake \
-    fastp fastuniq \
-    hicstuff \
-    megahit flye metamdbg \
-    metator drep \
-    genomad \
-    bwa samtools samblaster bamm \
-    seqkit seqmagick \
-    pandas numpy pyyaml openpyxl \
-    trnascan-se \
-    metaxa \
-    barrnap
-```
-
-Activate the environment:
+Create the launcher environment using the Conda environment file
+provided with the repository:
 
 ```bash
+conda env create -n MetaSpici -f metaspici/workflow/envs/launcher.yaml
 conda activate MetaSpici
 ```
 
----
-
-## Install BASALT
-
-Due to its complex dependency structure, BASALT is recommended to be installed in a separate Conda environment.
-
-Please follow the official installation instructions provided by the BASALT project:
-
-https://github.com/PKU-EMBL/BASALT
-
-A typical installation is:
+Install MetaSpici from the repository directory:
 
 ```bash
-git clone https://github.com/PKU-EMBL/BASALT.git
-cd BASALT
-
-mamba env create -n BASALT -f basalt_env.yml
+python -m pip install --no-deps .
 ```
 
-Activate the BASALT environment when required:
+Check the command-line interface:
 
 ```bash
-conda activate BASALT
+metaspici --help
 ```
 
----
+### Update an existing installation
 
-## Download Required Databases
-
-MetaSpici requires the following databases before running the pipeline.
-
-### geNomad database
-
-Download the geNomad database:
+If MetaSpici is already installed in a Conda launcher environment, activate that environment and install the updated source or release wheel:
 
 ```bash
-genomad download-database database/genomad_db
+conda activate MetaSpici
+cd /path/to/MetaSpici
+git pull
+python -m pip install --no-deps --upgrade .
+metaspici --version
 ```
 
-Alternatively, specify another directory:
+If you downloaded the wheel from a GitHub Release instead, run `python -m pip install --no-deps --upgrade ./metaspici-1.1-py3-none-any.whl` from the directory containing the wheel.
+
+## Initialize MetaSpici
+
+### Assembly mode
 
 ```bash
-genomad download-database /path/to/genomad_db
+metaspici setup --mode assembly \
+  --env-root /path/to/metaspici/envs \
+  --checkm-db /path/to/metaspici/envs/genome_qc/checkm_data \
+  --checkv-db /path/to/checkv_db \
+  --genomad-db /path/to/genomad_db
 ```
 
----
+If you already have a compatible BASALT environment, add
+`--basalt-prefix /absolute/path/to/BASALT`.
 
-### CheckV database
-
-Download the CheckV database:
+### Reference mode
 
 ```bash
-checkv download_database database/checkv_db
+metaspici setup --mode reference \
+  --env-root /path/to/metaspici/envs \
+  --checkv-db /path/to/checkv_db
 ```
 
-Or specify another directory:
+The database and environment paths above are examples. Replace them with
+the absolute paths on your system.
+
+## Usage
+
+Use `metaspici run --help` or `metaspici run --mode <mode> --help` to
+view the available arguments.
+
+### 1. Short reads + Hi-C
 
 ```bash
-checkv download_database /path/to/checkv_db
+metaspici run --mode assembly \
+  --short-r1 /data/sample/short_R1.fastq.gz \
+  --short-r2 /data/sample/short_R2.fastq.gz \
+  --hic-r1 /data/sample/HiC_R1.fastq.gz \
+  --hic-r2 /data/sample/HiC_R2.fastq.gz \
+  --enzyme Sau3AI \
+  --sample sample1 \
+  --threads 32 \
+  --identity 99 \
+  --outdir /results/sample1
 ```
 
-> **Note:** Please keep track of the locations of the downloaded databases. Their paths will be required when running MetaSpici.
+### 2. Long reads + Hi-C
 
----
-
-## Verify Installation
-
-Verify that the required software has been installed successfully:
+Supported `--long-type` values are `nanopore`, `pacbio`, `nanoporeR10`,
+and `pacbioHiFi`.
 
 ```bash
-snakemake --version
-fastp --version
-hicstuff --help
-megahit --version
-flye --version
-metamdbg --help
-metator --help
-dRep --help
-genomad --help
-bwa
-samtools --version
-seqkit version
-trnascan-se -h
-metaxa -h
-barrnap --help
+metaspici run --mode assembly \
+  --long-reads /data/sample/long_reads.fastq.gz \
+  --long-type nanoporeR10 \
+  --hic-r1 /data/sample/HiC_R1.fastq.gz \
+  --hic-r2 /data/sample/HiC_R2.fastq.gz \
+  --enzyme Sau3AI \
+  --sample sample1_long \
+  --threads 32 \
+  --identity 99 \
+  --outdir /results/sample1_long
 ```
 
-If all commands execute successfully without errors, MetaSpici has been installed correctly and is ready for use.
-
-# Usage
-
-MetaSpici automatically detects the analysis mode based on the input files provided. No additional mode selection is required.
-
----
-
-## General Usage
+### 3. Hybrid + Hi-C
 
 ```bash
-python MetaSpici.py [OPTIONS]
+metaspici run --mode assembly \
+  --short-r1 /data/sample/short_R1.fastq.gz \
+  --short-r2 /data/sample/short_R2.fastq.gz \
+  --long-reads /data/sample/long_reads.fastq.gz \
+  --long-type nanoporeR10 \
+  --hic-r1 /data/sample/HiC_R1.fastq.gz \
+  --hic-r2 /data/sample/HiC_R2.fastq.gz \
+  --enzyme Sau3AI \
+  --sample sample1_hybrid \
+  --threads 32 \
+  --identity 99 \
+  --outdir /results/sample1_hybrid
 ```
 
-Display all available options:
+### 4. Hi-C only
 
 ```bash
-python MetaSpici.py --help
+metaspici run --mode assembly \
+  --hic-r1 /data/sample/HiC_R1.fastq.gz \
+  --hic-r2 /data/sample/HiC_R2.fastq.gz \
+  --enzyme Sau3AI \
+  --sample sample1_hic \
+  --threads 32 \
+  --identity 99 \
+  --outdir /results/sample1_hic
 ```
 
----
+### 5. Reference mode
 
-## Example 1. Short-read + Hi-C
+Provide a directory containing MAG/genome FASTA files, a FASTA file
+containing the MGE sequences to test, and paired-end Hi-C reads.
 
 ```bash
-python MetaSpici.py \
-    -s1 short_R1.fastq.gz \
-    -s2 short_R2.fastq.gz \
-    -h1 hic_R1.fastq.gz \
-    -h2 hic_R2.fastq.gz \
-    -e DpnII \
-    -n fecal \
-    -j 32 \
-    -o results/
+metaspici run --mode reference \
+  --mag-dir /data/sample/MAGs \
+  --mge-fasta /data/sample/MGEs.fa \
+  --hic-r1 /data/sample/HiC_R1.fastq.gz \
+  --hic-r2 /data/sample/HiC_R2.fastq.gz \
+  --enzyme Sau3AI \
+  --sample sample1 \
+  --threads 32 \
+  --identity 99 \
+  --outdir /results/sample1_reference
 ```
 
----
+### Common parameters
 
-## Example 2. Long-read + Hi-C (Oxford Nanopore)
+| Parameter                  | Description                                                                             |
+|----------------------------|-----------------------------------------------------------------------------------------|
+| `--mode`                   | `assembly` or `reference`                                                               |
+| `--short-r1`, `--short-r2` | Paired-end short reads                                                                  |
+| `--long-reads`             | Long-read FASTQ file                                                                    |
+| `--long-type`              | Long-read platform/type                                                                 |
+| `--hic-r1`, `--hic-r2`     | Paired-end Hi-C reads                                                                   |
+| `--enzyme`                 | Restriction enzyme used for Hi-C library preparation, e.g. `Sau3AI`, `MboI`, or `DpnII` |
+| `--sample`                 | Sample name                                                                             |
+| `--threads`                | Number of CPU threads                                                                   |
+| `--identity`               | Sequence identity threshold (95–99)                                                     |
+| `--outdir`                 | Output directory                                                                        |
 
-```bash
-python MetaSpici.py \
-    --nanopore nanopore.fastq.gz \
-    -h1 hic_R1.fastq.gz \
-    -h2 hic_R2.fastq.gz \
-    -e DpnII \
-    -n fecal \
-    -j 32 \
-    -o results/
-```
+## Input files
 
----
+- **Short reads:** paired-end FASTQ files, for example
+  `short_R1.fastq.gz` and `short_R2.fastq.gz`.
+- **Long reads:** a FASTQ file from a supported platform (Nanopore or
+  PacBio); specify the type using `--long-type`.
+- **Hi-C reads:** paired-end FASTQ files, for example `HiC_R1.fastq.gz`
+  and `HiC_R2.fastq.gz`.
+- **Reference genomes:** a directory containing MAG/genome FASTA files,
+  required for Reference mode.
+- **MGE sequences:** a FASTA file containing the mobile genetic elements
+  to evaluate, required for Reference mode.
 
-## Example 3. Hybrid Assembly (Short + Long + Hi-C)
+## Output files
 
-```bash
-python MetaSpici.py \
-    -s1 short_R1.fastq.gz \
-    -s2 short_R2.fastq.gz \
-    --nanopore nanopore.fastq.gz \
-    -h1 hic_R1.fastq.gz \
-    -h2 hic_R2.fastq.gz \
-    -e DpnII \
-    -n fecal \
-    -j 32 \
-    -o results/
-```
+Results are written to the directory specified by `--outdir`. The exact
+files depend on the selected mode and the stages completed.
 
----
+Typical output groups include:
 
-## Example 4. Hi-C Only
+| Output | Description |
+|---|---|
+| `assembly_workflow/01_assembly/` | Assembly contigs and assembly-stage files |
+| `assembly_workflow/02_binning/` | MAG binning and combined/dereplicated MAG candidates |
+| `assembly_workflow/03_mge_detection/` | geNomad virus/plasmid identification results |
+| `assembly_workflow/04_hic_network/` | Hi-C network and partition results |
+| `assembly_workflow/05_mge_host_linking/` | MGE binning and MGE–host linking intermediates |
+| `qc/` | Quality-control reports |
+| `logs/` | Workflow and tool logs |
+| `run_info/` | Run configuration and output manifests |
+| `results/` | Association tables |
 
-```bash
-python MetaSpici.py \
-    -h1 hic_R1.fastq.gz \
-    -h2 hic_R2.fastq.gz \
-    -e DpnII \
-    -n fecal \
-    -j 32 \
-    -o results/
-```
+### Important output files
 
----
+| File or directory | Description |
+|---|---|
+| `assembly_workflow/01_assembly/{sample}_final.contigs.fa` | Assembled contigs for the short-read assembly route |
+| `assembly_workflow/02_binning/{sample}_final_binset/` | Combined/dereplicated MAG candidate set used by the downstream analysis |
+| `assembly_workflow/05_mge_host_linking/metator_mge_{sample}/mges_binned.fa` | MGE sequences passed to the shared association workflow |
+| `assembly_workflow/run_info/assembly_manifest.tsv` | Assembly-stage output manifest |
+| `results/{sample}.associations.unfiltered_fe.tsv` | Association table before fold-enrichment filtering |
+| `results/{sample}.mge_host.filtered.tsv` | Final filtered MGE–host association table |
+| `run_info/config.yaml` | Effective run configuration |
+| `run_info/output_manifest.tsv` | Manifest of recorded workflow outputs |
 
-## Example 5. Reference-guided Analysis
-
-```bash
-python MetaSpici.py \
-    --reference-guided \
-    --mag_dir MAGs/ \
-    --votu vOTUs.fa \
-    -h1 hic_R1.fastq.gz \
-    -h2 hic_R2.fastq.gz \
-    -e DpnII \
-    -n fecal \
-    -j 32 \
-    -o results/
-```
-
----
-
-## Command-line Arguments
-
-| Argument             | Description                                            |
-| -------------------- | ------------------------------------------------------ |
-| `-s1`, `-s2`         | Short-read FASTQ files (paired-end)                    |
-| `--nanopore`         | Oxford Nanopore reads                                  |
-| `--nanopore_R10`     | Oxford Nanopore R10 reads                              |
-| `--pacbio`           | PacBio CLR reads                                       |
-| `--pacbioHiFi`       | PacBio HiFi reads                                      |
-| `-h1`, `-h2`         | Hi-C paired-end FASTQ files (required)                 |
-| `-e`                 | Restriction enzyme used for Hi-C library preparation   |
-| `-n`                 | Sample name                                            |
-| `-j`                 | Number of CPU threads                                  |
-| `-o`                 | Output directory                                       |
-| `--reference-guided` | Enable reference-guided MAG–vOTU association mode      |
-| `--mag_dir`          | Directory containing MAG genomes                       |
-| `--votu`             | vOTU FASTA file                                        |
-| `--target`           | Execute a specific Snakemake target                    |
-| `--create-envs-only` | Create Conda environments without running the workflow |
-
-
-# Input Files
-
-MetaSpici accepts multiple sequencing strategies.
-
-## Short reads
-
-Paired-end Illumina FASTQ files.
-
-Example:
-
-short_R1.fastq.gz
-short_R2.fastq.gz
-
----
-
-## Long reads
-
-Supported platforms
-
-- Oxford Nanopore
-- Oxford Nanopore R10
-- PacBio CLR
-- PacBio HiFi
-
-Example
-
-nanopore.fastq.gz
-
----
-
-## Hi-C reads
-
-Paired-end Hi-C FASTQ files.
-
-Example
-
-hic_R1.fastq.gz
-hic_R2.fastq.gz
-
----
-
-### Reference-guided mode
-
-The reference-guided mode is designed for users who already have **reference MAGs** and **viral genomes (vOTUs)** available. Instead of performing de novo assembly and genome binning, MetaSpici directly utilizes these reference sequences together with Hi-C sequencing data to identify MAG–MGE associations.
-
-This mode is particularly useful when:
-
-- High-quality MAGs have already been reconstructed from the same metagenomic sample.
-- Reference genomes are available from isolates or pure-culture sequencing obtained from the same environment.
-- Existing genome catalogs have been generated in previous studies and users only wish to perform Hi-C-based MAG–MGE association analysis.
-
-**Note:** MetaSpici does **not** generate MAGs or vOTUs in reference-guided mode. These reference genomes must be prepared independently by the user before running the pipeline.
-
-#### Required inputs
-
-**MAG directory**
-
-A directory containing assembled MAG genomes in FASTA format.
-
-Example:
-
-```text
-MAGs/
-├── MAG_001.fa
-├── MAG_002.fa
-├── MAG_003.fa
-└── ...
-```
-
-**vOTU FASTA**
-
-A FASTA file containing viral genomes or viral operational taxonomic units (vOTUs).
-
-Example:
-
-```text
-vOTUs.fa
-```
-
-**Hi-C reads**
-
-Paired-end Hi-C sequencing reads generated from the same sample.
-
-```text
-hic_R1.fastq.gz
-hic_R2.fastq.gz
-```
-
-# Output Files
-
-MetaSpici stores all analysis results in the user-specified output directory. A typical output structure is shown below:
-
-```text
-results/
-├── assembly/
-├── mapping/
-├── binning/
-├── blast_results_mock/
-├── filtered_beds_clean/
-├── hic_results/
-├── mapped_reads/
-├── output/
-├── repeat_regions/
-├── tmp/
-├── merged_links.tsv
-└── config.yaml
-```
-
----
-
-## Directory Description
-
-| Directory/File         | Description                                                                                                                                           |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `assembly/`            | Genome assembly results, including assembled contigs generated from short reads, long reads or hybrid assembly.                                       |
-| `mapping/`             | Read preprocessing and mapping results, including quality control, duplicate removal, Hi-C restriction site processing, and reference genome masking. |
-| `binning/`             | Genome binning and refinement results for metagenome-assembled genomes (MAGs).                                                                        |
-| `blast_results_mock/`  | BLAST self-alignment results used to identify homologous or repetitive genomic regions for downstream masking.                                        |
-| `repeat_regions/`      | Genomic regions identified as repetitive or highly similar based on BLAST analysis.                                                                   |
-| `filtered_beds_clean/` | Filtered Hi-C contact files after masking repetitive regions and removing contacts originating from these regions.                                    |
-| `mapped_reads/`        | Intermediate files generated during read alignment and mapping.                                                                                       |
-| `hic_results/`         | Final filtered Hi-C interaction data and abundance estimation results.                                                                                |
-| `output/`              | Intermediate and final results generated during mobile genetic element (MGE) identification and MAG–MGE association analysis.                         |
-| `tmp/`                 | Temporary files generated during pipeline execution.                                                                                                  |
-| `merged_links.tsv`     | Unfiltered MAG–MGE association results generated from Hi-C interaction data.                                                                          |
-| `config.yaml`          | Configuration file automatically generated from the command-line arguments.                                                                           |
-
----
-
-## Primary Outputs
-
-The major results produced by MetaSpici include:
-
-* High-quality assembled contigs.
-* Metagenome-assembled genomes (MAGs).
-* Filtered Hi-C interaction datasets.
-* Hi-C-based microbial abundance estimation.
-* Predicted mobile genetic elements (MGEs).
-* Hi-C-supported MAG–MGE association results.
-
-
----
+Check the files and logs in your own run directory if a particular output is missing or a stage did not complete.
 
 ## Licensing
 
 MetaSpici uses a dual-licensing model:
 
-- Noncommercial use is available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
-- Use outside the permitted purposes of that license requires a separate written [commercial license](COMMERCIAL_LICENSE.md).
+- Noncommercial use is available under the [PolyForm Noncommercial
+  License 1.0.0](LICENSE).
+- Use outside the permitted purposes of that license requires a separate
+  written [commercial license](COMMERCIAL_LICENSE.md).
 
-PolyForm Noncommercial is a source-available license with a noncommercial-use restriction; it is not an OSI-approved open-source license.
+PolyForm Noncommercial is a source-available license with a
+noncommercial-use restriction; it is not an OSI-approved open-source
+license. Read `LICENSE` and `COMMERCIAL_LICENSE.md` before use or
+redistribution.
 
 ## Patents
 
-The method implemented by MetaSpici is associated with patent rights and a pending Hong Kong patent application. See [PATENTS.md](PATENTS.md) for the identifiers, owner or applicant, and status supported by the patent records supplied with this repository.
-
-The license grant in `LICENSE` controls the patent license, if any, for permitted noncommercial use. `PATENTS.md` is informational and does not independently grant rights.
+The method implemented by MetaSpici is associated with patent rights and
+a pending Hong Kong patent application. See [PATENTS.md](PATENTS.md) for
+the relevant information.
 
 ## Citation
 
-If you use MetaSpici in research, cite the software using [CITATION.cff](CITATION.cff), including the exact version or commit used. When an associated peer-reviewed article or preprint receives a public bibliographic record, its DOI and full citation should be added to `CITATION.cff` as `preferred-citation`; no article metadata is asserted here without a verifiable publication record.
-
-## Contributing
-
-External contributions are welcome subject to the contribution and intellectual-property terms in [CONTRIBUTING.md](CONTRIBUTING.md). In particular, contributors must have the right to submit their work and must grant rights sufficient for both the noncommercial distribution and commercial licensing of MetaSpici.
+If you use MetaSpici in research, cite the software using the version or
+Git commit used. Add the associated manuscript or preprint citation when
+a public bibliographic record is available.
 
 ## Third-party software
 
-Third-party components retain their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Release maintainers must update that file from the exact dependency manifests and lockfiles for every release.
+MetaSpici uses third-party tools, including BASALT, MetaTOR, MEGAHIT,
+long-read assemblers, dRep, geNomad, CheckM, CheckV, and OPERA-MS. Each
+tool and its database remains subject to its own license and terms. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-## Notices and contact
+## Support
 
-See [NOTICE](NOTICE) for copyright and patent notices.
+For bug reports or feature requests, open an issue in the [MetaSpici
+GitHub repository](https://github.com/LoMI-lab/MetaSpici). Include the
+command used and relevant log excerpts, but do not post private
+sequencing data or credentials.
 
-- Technical questions: use the GitHub issue tracker.
-- Commercial licensing and technology-transfer inquiries: [fanl@sustech.edu.cn](mailto:fanl@sustech.edu.cn).
-- Security-sensitive reports should not be posted publicly; contact the maintainers through a private channel listed in the repository profile or release documentation.
+For commercial licensing and technology-transfer inquiries, contact
+<fanl@sustech.edu.cn>.
 
 ## Disclaimer
 
-MetaSpici is provided without warranty under the terms of `LICENSE`. It is not a substitute for professional scientific, clinical, legal, or regulatory judgment.
+MetaSpici is provided under the terms of `LICENSE` and without warranty.
+Results should be interpreted and validated in the context of the study.

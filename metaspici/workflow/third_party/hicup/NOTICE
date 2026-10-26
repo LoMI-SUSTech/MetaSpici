@@ -1,0 +1,4 @@
+HiCUP Truncater and hicup_module.pm v0.9.2, Copyright (C) 2023 Steven Wingett.
+Source: https://github.com/StevenWingett/HiCUP/tree/v0.9.2
+These upstream scripts are unmodified and separately licensed GPL-3.0-or-later.
+Invoked as an external Perl program; source and license are included.

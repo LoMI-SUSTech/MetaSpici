@@ -1,6 +1,7 @@
 cff-version: "1.2.0"
 message: "If you use MetaSpici in research, please cite this software using these metadata and identify the exact release or commit used."
 title: "MetaSpici"
+version: "1.1"
 type: software
 abstract: "MetaSpici is research software for filtering nonspecific inter-genome proximity-ligation contacts using an abundance-aware random-collision background model and observed-to-expected signal assessment."
 authors:
@@ -18,8 +19,8 @@ contact:
     given-names: "Lu"
     affiliation: "Southern University of Science and Technology"
     email: "fanl@sustech.edu.cn"
-repository-code: "https://github.com/LoMI-SUSTech/MetaSpici"
-url: "https://github.com/LoMI-SUSTech/MetaSpici"
+repository-code: "https://github.com/LoMI-lab/MetaSpici"
+url: "https://github.com/LoMI-lab/MetaSpici"
 license: "PolyForm-Noncommercial-1.0.0"
 keywords:
   - "metagenomic Hi-C"

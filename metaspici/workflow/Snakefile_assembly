@@ -1,0 +1,306 @@
+"""Short-read + Hi-C assembly/MGE-discovery stage for MetaSpici mode=assembly.
+
+This workflow stops after the original mode2 has produced dereplicated MAGs and
+MetaTOR-linked MGE FASTA. The shared reference workflow then handles masking,
+FastUniq -> HiCUP Truncater, mapping, contact reconstruction, and FE inference.
+"""
+from pathlib import Path
+import shlex
+
+ROOT = Path(config['root'])
+UTIL = str(ROOT / 'scripts' / 'assembly_utils.py')
+SAMPLE = config['sample']
+THREADS = int(config['threads'])
+CHECKM_DB = shlex.quote(config['checkm_db'])
+CHECKV_DB = shlex.quote(config['checkv_db'])
+GENOMAD_DB = shlex.quote(config['genomad_db'])
+BASALT_PREFIX = shlex.quote(config['basalt_prefix'])
+CONDA_EXE = shlex.quote(config['conda_executable'])
+IDENTITY_FRACTION = float(config['identity']) / 100.0
+
+rule all:
+    input:
+        expand('01_assembly/{sample}_final.contigs.fa', sample=[SAMPLE]),
+        expand('02_binning/{sample}_final_shortbinset', sample=[SAMPLE]),
+        expand('02_binning/{sample}_final_hicbinset', sample=[SAMPLE]),
+        expand('02_binning/{sample}_final_binset', sample=[SAMPLE]),
+        expand('05_mge_host_linking/metator_mge_{sample}', sample=[SAMPLE])
+
+rule short_read_qc:
+    input:
+        r1=config['short_read1'],
+        r2=config['short_read2']
+    output:
+        r1=f'qc/{SAMPLE}_clean_1.fastq',
+        r2=f'qc/{SAMPLE}_clean_2.fastq',
+        json=f'qc/{SAMPLE}.json',
+        html=f'qc/{SAMPLE}.html'
+    log: f'logs/{SAMPLE}_short_read_qc.log'
+    threads: THREADS
+    conda: 'core'
+    shell:
+        r"""
+        mkdir -p qc logs
+        fastp -i {input.r1:q} -I {input.r2:q} \
+          -o {output.r1:q} -O {output.r2:q} \
+          -w {threads} -D -q 30 -l 75 --cut_front --cut_tail \
+          -r -M 30 -j {output.json:q} -h {output.html:q} --umi_delim / \
+          > {log:q} 2>&1
+        """
+
+rule short_assembly:
+    input: rules.short_read_qc.output.r1, rules.short_read_qc.output.r2
+    output: '01_assembly/{sample}_final.contigs.fa'
+    params: outdir='01_assembly/{sample}_megahit'
+    threads: THREADS
+    conda: 'assembly'
+    log: 'logs/{sample}_short_assembly.log'
+    shell:
+        r"""
+        mkdir -p 01_assembly logs
+        rm -rf {params.outdir:q}
+        megahit --presets meta-sensitive -t {threads} -m 0.9 \
+          -1 {input[0]:q} -2 {input[1]:q} -o {params.outdir:q} > {log:q} 2>&1
+        test -s {params.outdir:q}/final.contigs.fa
+        cp {params.outdir:q}/final.contigs.fa {output:q}
+        """
+
+rule length_filtering:
+    input: rules.short_assembly.output
+    output: '01_assembly/{sample}_final_min2k.contigs.fa'
+    conda: 'assembly'
+    log: 'logs/{sample}_length_filtering.log'
+    shell:
+        'seqmagick convert --min-length 2000 {input:q} {output:q} > {log:q} 2>&1'
+
+rule hic_read_qc:
+    input:
+        r1=config['hic_read1'],
+        r2=config['hic_read2']
+    output:
+        r1=f'qc/{SAMPLE}_hic_clean_1.fastq',
+        r2=f'qc/{SAMPLE}_hic_clean_2.fastq',
+        json=f'qc/{SAMPLE}_hic.json',
+        html=f'qc/{SAMPLE}_hic.html'
+    threads: THREADS
+    conda: 'core'
+    log: f'logs/{SAMPLE}_hic_read_qc.log'
+    shell:
+        r"""
+        mkdir -p qc logs
+        fastp -i {input.r1:q} -I {input.r2:q} \
+          -o {output.r1:q} -O {output.r2:q} \
+          -w {threads} -D -q 30 -l 30 --cut_front --cut_tail \
+          -r -M 30 -j {output.json:q} -h {output.html:q} --umi_delim / \
+          > {log:q} 2>&1
+        """
+
+rule short_binning:
+    input:
+        contigs=rules.length_filtering.output,
+        r1=rules.short_read_qc.output.r1,
+        r2=rules.short_read_qc.output.r2
+    output: directory('02_binning/{sample}_final_shortbinset')
+    params:
+        workdir='02_binning/{sample}_basalt',
+        basalt_prefix=config['basalt_prefix'],
+        checkm_db=config['checkm_db'],
+        conda_executable=config['conda_executable']
+    threads: THREADS
+    log:
+        autobinning='logs/{sample}_basalt_autobinning.log',
+        refinement='logs/{sample}_basalt_refinement.log'
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p 02_binning logs
+        # Keep BASALT checkpoint/intermediates across an incomplete retry; only
+        # remove the declared final output so Snakemake can rebuild it safely.
+        rm -rf {output:q}
+        mkdir -p {params.workdir:q}
+        CONTIGS=$(realpath {input.contigs:q})
+        R1=$(realpath {input.r1:q})
+        R2=$(realpath {input.r2:q})
+        cd {params.workdir:q}
+        ln -sfn "$CONTIGS" "$(basename "$CONTIGS")"
+        ln -sfn "$R1" "$(basename "$R1")"
+        ln -sfn "$R2" "$(basename "$R2")"
+        export CHECKM_DATA_PATH={params.checkm_db:q}
+        export CHECKM_DATA_DIR={params.checkm_db:q}
+        # A fresh checkpoint must be initialized before the original autobinning
+        # and refinement modules can be resumed in sequence.
+        {params.conda_executable:q} run --no-capture-output -p {params.basalt_prefix:q} \
+          BASALT -a "$(basename "$CONTIGS")" -t {threads} \
+          -s "$(basename "$R1"),$(basename "$R2")" \
+          --mode new --module autobinning > ../../{log.autobinning:q} 2>&1
+        {params.conda_executable:q} run --no-capture-output -p {params.basalt_prefix:q} \
+          BASALT -a "$(basename "$CONTIGS")" -t {threads} \
+          -s "$(basename "$R1"),$(basename "$R2")" \
+          --mode continue --module refinement > ../../{log.refinement:q} 2>&1
+        BASALT_BINSET=$(python {UTIL:q} resolve-basalt-binset "$PWD")
+        mv "$BASALT_BINSET" ../{wildcards.sample}_final_shortbinset
+        test -n "$(find ../{wildcards.sample}_final_shortbinset -maxdepth 1 -type f \( -name '*.fa' -o -name '*.fasta' -o -name '*.fna' \) -print -quit)"
+        """
+
+rule hic_binning:
+    input:
+        contigs=rules.length_filtering.output,
+        r1=rules.hic_read_qc.output.r1,
+        r2=rules.hic_read_qc.output.r2
+    output: directory('02_binning/{sample}_final_hicbinset')
+    params:
+        outdir='02_binning/{sample}_metator',
+        checkv_db=config['checkv_db'],
+        enzyme=config['enzyme']
+    threads: THREADS
+    conda: 'metator'
+    log: 'logs/{sample}_metator_pipeline.log'
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p 02_binning logs
+        rm -rf {params.outdir:q} {output:q}
+        export CHECKVDB={params.checkv_db:q}
+        metator pipeline -1 {input.r1:q} -2 {input.r2:q} -a {input.contigs:q} \
+          -e {params.enzyme:q} -o {params.outdir:q} -t {threads} > {log:q} 2>&1
+        test -d {params.outdir:q}/final_bin_unscaffold
+        mv {params.outdir:q}/final_bin_unscaffold {output:q}
+        """
+
+rule bin_drep:
+    input:
+        hic=rules.hic_binning.output,
+        short=rules.short_binning.output
+    output: directory('02_binning/{sample}_final_binset')
+    params:
+        combined='02_binning/{sample}_combine_bins',
+        drep_out='02_binning/{sample}_drep',
+        checkm_db=config['checkm_db'],
+        identity=IDENTITY_FRACTION
+    threads: THREADS
+    conda: 'genome_qc'
+    log: 'logs/{sample}_drep_combined_bins.log'
+    shell:
+        r"""
+        set -euo pipefail
+        rm -rf {params.combined:q} {params.drep_out:q} {output:q}
+        mkdir -p {params.combined:q} logs
+        python {UTIL:q} combine-bins {input.hic:q} {input.short:q} {params.combined:q} > {log:q} 2>&1
+        export CHECKM_DATA_PATH={params.checkm_db:q}
+        export CHECKM_DATA_DIR={params.checkm_db:q}
+        dRep dereplicate {params.drep_out:q} -g {params.combined:q}/*.fa \
+          -comp 50 -con 5 -sa {params.identity} -p {threads} >> {log:q} 2>&1
+        test -d {params.drep_out:q}/dereplicated_genomes
+        mv {params.drep_out:q}/dereplicated_genomes {output:q}
+        test -n "$(find {output:q} -maxdepth 1 -type f \( -name '*.fa' -o -name '*.fasta' -o -name '*.fna' \) -print -quit)"
+        """
+
+rule mge_length_filtering:
+    input: rules.short_assembly.output
+    output: '03_mge_detection/{sample}.contigs.min5k.fa'
+    conda: 'assembly'
+    log: 'logs/{sample}_mge_length_filtering.log'
+    shell:
+        'mkdir -p 03_mge_detection logs && seqmagick convert --min-length 5000 {input:q} {output:q} > {log:q} 2>&1'
+
+rule genomad_detection:
+    input: rules.mge_length_filtering.output
+    output:
+        virus='03_mge_detection/genomad_{sample}/{sample}.contigs.min5k_summary/{sample}.contigs.min5k_virus_summary.tsv',
+        plasmid='03_mge_detection/genomad_{sample}/{sample}.contigs.min5k_summary/{sample}.contigs.min5k_plasmid_summary.tsv'
+    params:
+        outdir='03_mge_detection/genomad_{sample}',
+        db=config['genomad_db']
+    threads: THREADS
+    conda: 'genomad'
+    log: 'logs/{sample}_genomad.log'
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p 03_mge_detection logs
+        genomad end-to-end {input:q} {params.outdir:q} {params.db:q} --threads {threads} > {log:q} 2>&1
+        test -s {output.virus:q}
+        test -s {output.plasmid:q}
+        """
+
+rule extract_mge_contigs:
+    input:
+        virus=rules.genomad_detection.output.virus,
+        plasmid=rules.genomad_detection.output.plasmid
+    output: '03_mge_detection/{sample}_MGE_contigs.tsv'
+    conda: 'core'
+    log: 'logs/{sample}_extract_mge_contigs.log'
+    shell:
+        r"""
+        set -euo pipefail
+        (cut -f1 {input.virus:q} | tail -n +2; cut -f1 {input.plasmid:q} | tail -n +2) \
+          | awk '{{print $1"\t"NR}}' > {output:q}
+        test -s {output:q} || {{ echo 'geNomad detected no virus/plasmid contigs >=5 kb' >&2; exit 2; }}
+        """
+
+rule metator_network:
+    input:
+        assembly=rules.mge_length_filtering.output,
+        r1=rules.hic_read_qc.output.r1,
+        r2=rules.hic_read_qc.output.r2
+    output:
+        network='04_hic_network/metator_network_{sample}/network.txt',
+        contigs='04_hic_network/metator_network_{sample}/contig_data_network.txt',
+        pairs='04_hic_network/metator_network_{sample}/alignment_0_sorted.pairs.gz'
+    params: outdir='04_hic_network/metator_network_{sample}'
+    threads: THREADS
+    conda: 'metator'
+    log: 'logs/{sample}_metator_network.log'
+    shell:
+        r"""
+        set -euo pipefail
+        rm -rf {params.outdir:q}
+        metator network --assembly {input.assembly:q} --forward {input.r1:q} --reverse {input.r2:q} \
+          --aligner bowtie2 --aligner-mode normal --outdir {params.outdir:q} --threads {threads} > {log:q} 2>&1
+        test -s {output.network:q}
+        test -s {output.contigs:q}
+        test -s {output.pairs:q}
+        """
+
+rule metator_partition:
+    input:
+        assembly=rules.mge_length_filtering.output,
+        contigs=rules.metator_network.output.contigs,
+        network=rules.metator_network.output.network
+    output: '04_hic_network/metator_partition_{sample}/binning.tsv'
+    params: outdir='04_hic_network/metator_partition_{sample}'
+    threads: THREADS
+    conda: 'metator'
+    log: 'logs/{sample}_metator_partition.log'
+    shell:
+        r"""
+        set -euo pipefail
+        mkdir -p {params.outdir:q}
+        metator partition --assembly {input.assembly:q} --contigs {input.contigs:q} \
+          --network {input.network:q} --outdir {params.outdir:q} --threads {threads} > {log:q} 2>&1
+        test -s {params.outdir:q}/contig_data_partition.txt
+        awk 'NR>1 && $8!="-" {{printf "%s\t%d\n", $2, int($8)}}' \
+          {params.outdir:q}/contig_data_partition.txt > {output:q}
+        """
+
+rule metator_mge_link:
+    input:
+        network=rules.metator_network.output.network,
+        pairs=rules.metator_network.output.pairs,
+        contigs_data=rules.metator_network.output.contigs,
+        binning=rules.metator_partition.output,
+        mges=rules.extract_mge_contigs.output,
+        fasta=rules.short_assembly.output
+    output: directory('05_mge_host_linking/metator_mge_{sample}')
+    threads: THREADS
+    conda: 'metator'
+    log: 'logs/{sample}_metator_mge_link.log'
+    shell:
+        r"""
+        set -euo pipefail
+        rm -rf {output:q}
+        metator mge --network {input.network:q} --binning {input.binning:q} --mges {input.mges:q} \
+          --contigs-data {input.contigs_data:q} --fasta {input.fasta:q} --outdir {output:q} \
+          --threads {threads} --threshold-bin 0.8 --threshold-asso 0.1 {input.pairs:q} > {log:q} 2>&1
+        test -s {output:q}/mges_binned.fa
+        """
