@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.10
+  - drep=3.6.2
+  - checkm-genome=1.2.3
+  - numpy<2
+  - pandas<2
+  - setuptools=80.9.0
