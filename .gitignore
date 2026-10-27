@@ -9,7 +9,6 @@ venv/
 
 # Conda environments and databases
 .envs/
-envs/
 checkm_data/
 checkv_db*/
 genomad_db*/

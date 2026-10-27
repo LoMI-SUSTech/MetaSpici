@@ -1,0 +1,20 @@
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.11
+  - fastp=0.23.4
+  - fastuniq=1.1
+  - bwa=0.7.19
+  - samtools=1.21
+  - samblaster=0.1.26
+  - sambamba=1.0.1
+  - bedtools=2.31.1
+  - blast=2.16.0
+  - barrnap=0.9
+  - trnascan-se=2.0.12
+  - numpy<2
+  - pandas<3
+  - biopython
+  - gawk

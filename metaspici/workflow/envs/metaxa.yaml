@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - metaxa=2.2.3
+  - blast=2.16.0

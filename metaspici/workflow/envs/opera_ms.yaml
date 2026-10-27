@@ -1,0 +1,14 @@
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - perl
+  - perl-app-cpanminus
+  - make
+  - wget
+  - cxx-compiler
+  - r-base
+  - openjdk
+  - samtools=1.21
+  - mummer=3.23
